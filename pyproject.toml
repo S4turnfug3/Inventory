@@ -1,0 +1,35 @@
+[project]
+name = "vita-inventory"
+version = "0.1.0"
+description = "Professionelles Inventarisierungs- und Dokumentationstool für Homelab-Infrastrukturen."
+readme = "README.md"
+requires-python = ">=3.13"
+license = { text = "MIT" }
+
+authors = [
+    { name = "Andre" }
+]
+
+dependencies = [
+    "typer>=0.27.0",
+    "rich>=15.0.0",
+    "requests>=2.34.2",
+    "pydantic>=2.13.4",
+    "PyYAML>=6.0.3",
+    "Jinja2>=3.1.6",
+    "reportlab>=5.0.0"
+]
+
+[tool.black]
+line-length = 88
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "I",
+]
