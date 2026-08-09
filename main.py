@@ -6,6 +6,7 @@ from rich.console import Console
 
 from vita_inventory.core.config import load_config
 from vita_inventory.scanners.local import LocalScanner
+from vita_inventory.exporters.json import export_system
 
 app = typer.Typer(
     name="Vita Inventory",
@@ -31,17 +32,23 @@ def scan(
     effective_target = target or config.scan.target
 
     scanner = LocalScanner()
-    server = scanner.scan()
+    system = scanner.scan()
+    if "json" in config.output.formats:
+        output_directory = Path(config.output.directory)
+        output_directory.mkdir(parents=True, exist_ok=True)
+
+        output_file = output_directory / "system.json"
+        export_system(system, output_file)
 
     console.print("[bold green]Vita Inventory[/bold green]")
     console.print("Version: 0.1.0\n")
 
-    console.print(f"Hostname: {server.hostname}")
-    console.print(f"IP-Adresse: {server.ip_address}")
-    console.print(f"Betriebssystem: {server.operating_system}")
-    console.print(f"CPU: {server.cpu_model}")
-    console.print(f"Kerne: {server.cpu_cores}")
-    console.print(f"RAM: {server.memory_gb} GB")
+    console.print(f"Hostname: {system.hostname}")
+    console.print(f"IP-Adresse: {system.ip_address}")
+    console.print(f"Betriebssystem: {system.operating_system}")
+    console.print(f"CPU: {system.cpu_model}")
+    console.print(f"Kerne: {system.cpu_cores}")
+    console.print(f"RAM: {system.memory_gb} GB")
 
     if effective_target:
         console.print(f"\nZiel: {effective_target}")
