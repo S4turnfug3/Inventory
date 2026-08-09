@@ -1,155 +1,164 @@
 # Vita Inventory
 
-> Professionelles Inventarisierungs- und Dokumentationstool für Homelab- und Server-Infrastrukturen.
+Vita Inventory ist ein modulares Inventarisierungstool für Homelab-, Desktop- und Server-Umgebungen.
 
-## 📖 Über das Projekt
+Das Projekt sammelt lokale Systeminformationen, ermittelt das aktive IPv4-Netzwerk und kann bekannte Geräte innerhalb dieses Netzwerks erfassen.
 
-**Vita Inventory** ist ein modular aufgebautes Python-Tool zur automatischen Inventarisierung und Dokumentation von IT-Infrastrukturen.
+## Aktueller Stand
 
-Das Ziel ist es, Informationen über unterschiedliche Systeme zentral zu erfassen, strukturiert abzulegen und daraus automatisch Dokumentationen zu erzeugen.
+**Version:** 0.4.0
 
-Vita Inventory soll dabei nicht auf klassische Server beschränkt sein. Langfristig sollen unter anderem folgende Systeme unterstützt werden:
+Der aktuelle Entwicklungsstand umfasst:
 
-- Windows-PCs
-- Linux-Systeme
-- Server
-- virtuelle Maschinen
-- Proxmox VE
-- TrueNAS
-- Docker
-- Netzwerkgeräte
-- Storage-Systeme
+* lokale Systeminventarisierung
+* Betriebssystem- und Versionsinformationen
+* Hardwareinformationen
+* Hersteller-, Modell- und Seriennummer-Ermittlung unter Windows
+* Ermittlung der lokalen IPv4-Adresse
+* Ermittlung des primären aktiven IPv4-Netzwerks
+* Ermittlung des Gateways
+* Erkennung bekannter Netzwerkgeräte über die Windows-Nachbarschaftstabelle
+* zentrales `Inventory`-Gesamtmodell
+* JSON-Export
+* Markdown-Export
+* automatisierte Tests
 
-Das Projekt wird von Anfang an modular aufgebaut, damit neue Scanner, Datenmodelle und Exportformate später ergänzt werden können.
+## Architektur
 
----
-
-## 🚀 Entwicklungsstand
-
-| Version | Status |
-| ------- | ----- |
-| 0.1.0   | 🏗️ Grundstruktur und CLI |
-| 0.2.0   | ⚙️ Konfiguration, System-Modell und LocalScanner |
-| 0.3.0   | 🧪 Tests sowie JSON- und Markdown-Export |
-
-Der aktuelle Entwicklungsstand umfasst bereits:
-
-- Typer-basierte CLI
-- YAML-Konfiguration
-- strukturiertes `System`-Datenmodell
-- lokalen System-Scanner
-- Hardware- und Betriebssystem-Erfassung
-- JSON-Export
-- Markdown-Export
-- automatisierte Tests mit pytest
-- Codequalität mit Ruff und Black
-
----
-
-## 🏗 Aktuelle Architektur
-
-Die grundlegende Struktur von Vita Inventory ist:
+Vita Inventory trennt Datenermittlung, Datenmodell und Ausgabe.
 
 ```text
-Vita Inventory
-│
-├── Konfiguration
-│   └── config.yaml
-│
-├── Scanner
-│   └── LocalScanner
-│
-├── Datenmodell
-│   └── System
-│
-├── Exporter
-│   ├── JSON
-│   └── Markdown
-│
-└── Tests
-    └── pytest
+                    Vita Inventory
+                          │
+                     ┌────┴────┐
+                     │ Scanner │
+                     └────┬────┘
+                          │
+          ┌───────────────┼────────────────┐
+          │               │                │
+          ▼               ▼                ▼
+     LocalScanner   NetworkScanner   NetworkDiscovery
+          │               │                │
+          ▼               ▼                ▼
+        System        NetworkInfo    NetworkDevice[]
+          │               │                │
+          └───────────────┴────────────────┘
+                          │
+                          ▼
+                     Inventory
+                          │
+                    ┌─────┴─────┐
+                    ▼           ▼
+                  JSON       Markdown
 ```
 
-Die Python-Paketstruktur:
+### Datenmodelle
+
+#### System
+
+Beschreibt den lokalen Rechner:
+
+* Hostname
+* Betriebssystem
+* Betriebssystem-Version
+* Hersteller
+* Modell
+* Seriennummer
+* IP-Adresse
+* CPU
+* CPU-Kerne
+* Arbeitsspeicher
+
+#### NetworkInfo
+
+Beschreibt das aktive lokale IPv4-Netzwerk:
+
+* Netzwerkinterface
+* IPv4-Adresse
+* Präfixlänge
+* Netzwerk
+* Gateway
+
+#### NetworkDevice
+
+Beschreibt ein erkanntes Gerät innerhalb des Netzwerks:
+
+* IPv4-Adresse
+* MAC-Adresse
+* Hostname, sofern verfügbar
+* Netzwerkinterface
+* Status
+
+#### Inventory
+
+`Inventory` ist das zentrale Gesamtmodell eines Inventarisierungslaufs.
 
 ```text
-vita_inventory/
-├── core/
-│   └── config.py
-├── exporters/
-│   ├── json.py
-│   └── markdown.py
-├── models/
-│   └── system.py
-├── scanners/
-│   └── local.py
-├── services/
-└── utils/
+Inventory
+├── system
+├── network
+└── network_devices[]
 ```
 
----
+Dadurch können die Ergebnisse der verschiedenen Scanner gemeinsam verarbeitet und anschließend als vollständiges Inventory exportiert werden.
 
-## 🖥 System-Modell
+## Scanner
 
-Das zentrale Datenmodell von Vita Inventory heißt `System`.
+### LocalScanner
 
-Es beschreibt ein physisches oder virtuelles Computersystem.
+Der `LocalScanner` ermittelt grundlegende Informationen über den Rechner, auf dem Vita Inventory ausgeführt wird.
 
-Aktuell werden folgende Informationen vorgesehen:
+Unter Windows werden zusätzlich Informationen über `Win32_ComputerSystem` und `Win32_BIOS` abgefragt.
 
-```text
-hostname
-operating_system
-operating_system_version
-manufacturer
-model
-serial_number
-ip_address
-cpu_model
-cpu_cores
-memory_gb
+### NetworkScanner
+
+Der `NetworkScanner` ermittelt das primäre aktive IPv4-Netzwerk des lokalen Rechners.
+
+Dabei werden unter anderem Interface, IPv4-Adresse, Präfixlänge und Standard-Gateway ermittelt.
+
+### NetworkDiscovery
+
+`NetworkDiscovery` untersucht die vorhandene Windows-IPv4-Nachbarschaftstabelle.
+
+Dabei werden nur gültige IPv4-Adressen und gültige MAC-Adressen innerhalb des ermittelten Netzwerks übernommen.
+
+Aktuell werden keine aggressiven Portscans durchgeführt.
+
+## Exporte
+
+### JSON
+
+Ein vollständiger Inventarisierungslauf wird als `inventory.json` gespeichert.
+
+Die Struktur entspricht dem zentralen `Inventory`-Modell:
+
+```json
+{
+  "system": {},
+  "network": {},
+  "network_devices": []
+}
 ```
 
-Die grundlegenden Pflichtinformationen sind:
+### Markdown
 
-- Hostname
-- Betriebssystem
+Zusätzlich kann ein lesbarer Markdown-Bericht als `inventory.md` erzeugt werden.
 
-Weitere Informationen sind optional und werden schrittweise durch die verschiedenen Scanner ermittelt.
+Der Bericht enthält:
 
-Das Modell ist bewusst allgemein gehalten. Spezifische Informationen für Proxmox, Docker, TrueNAS oder andere Systeme sollen später nicht direkt in das allgemeine `System`-Modell gepackt werden.
+* Systeminformationen
+* Netzwerkinformationen
+* erkannte Netzwerkgeräte
 
----
+## Konfiguration
 
-## 🔍 Lokaler Scanner
-
-Der aktuelle `LocalScanner` erfasst Informationen des Rechners, auf dem Vita Inventory ausgeführt wird.
-
-Aktuell werden bereits ermittelt:
-
-- Hostname
-- lokale IPv4-Adresse
-- Betriebssystem
-- CPU
-- Anzahl der CPU-Kerne
-- Arbeitsspeicher
-
-Die Ermittlung von Hersteller, Modell, Seriennummer und einer separaten Betriebssystem-Version wird weiterentwickelt.
-
----
-
-## ⚙️ Konfiguration
-
-Vita Inventory verwendet eine YAML-Konfigurationsdatei.
+Die Konfiguration erfolgt über `config.yaml`.
 
 Beispiel:
 
 ```yaml
-project:
-  name: Vita Inventory
-
 scan:
-  target: null
+  target:
 
 output:
   directory: output
@@ -158,223 +167,94 @@ output:
     - markdown
 ```
 
-Über `output.formats` kann festgelegt werden, welche Exportformate erzeugt werden.
+Das Ausgabeverzeichnis wird automatisch erstellt.
 
----
+## Verwendung
 
-## 📤 Export
+Das Projekt wird innerhalb der virtuellen Python-Umgebung ausgeführt.
 
-Aktuell werden zwei Exportformate unterstützt:
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
 
-- JSON
-- Markdown
+Anschließend kann ein Inventarisierungslauf gestartet werden:
 
-Bei aktivierten Formaten werden die Ergebnisse beispielsweise als:
+```powershell
+python .\main.py scan
+```
+
+Die Ergebnisse werden entsprechend der Konfiguration im Ausgabeordner gespeichert.
+
+## Tests
+
+Die Tests werden mit `pytest` ausgeführt:
+
+```powershell
+python -m pytest -q
+```
+
+Der aktuelle Stand umfasst Tests für:
+
+* `System`
+* `LocalScanner`
+* `NetworkScanner`
+* `NetworkDiscovery`
+* `Inventory`
+* JSON-Export
+* Markdown-Export
+
+## Projektstruktur
 
 ```text
-output/
-├── system.json
-└── system.md
-```
-
-gespeichert.
-
-Weitere Exportformate wie HTML und PDF sind geplant, werden aber erst nach Stabilisierung der grundlegenden Inventarisierung umgesetzt.
-
----
-
-## 🧪 Tests
-
-Vita Inventory verwendet **pytest** für automatisierte Tests.
-
-Der aktuelle Testbestand deckt unter anderem ab:
-
-- `System`-Datenmodell
-- `LocalScanner`
-- JSON-Exporter
-- Markdown-Exporter
-
-Aktueller Stand:
-
-```text
-6 passed
-```
-
-Tests können mit folgendem Befehl ausgeführt werden:
-
-```powershell
-python -m pytest
-```
-
----
-
-## 🛠 Entwicklung
-
-Vita Inventory verwendet aktuell:
-
-- Python 3.13
-- Typer
-- Rich
-- Requests
-- Pydantic
-- PyYAML
-- Jinja2
-- ReportLab
-- psutil
-
-Für die Entwicklung werden zusätzlich verwendet:
-
-- pytest
-- Ruff
-- Black
-
-Die Entwicklungsabhängigkeiten werden über `pyproject.toml` verwaltet.
-
----
-
-## 🗺 Roadmap
-
-### Inventarisierung
-
-- [x] Grundlegendes `System`-Datenmodell
-- [x] Lokaler Scanner
-- [x] Hostname-Erfassung
-- [x] Betriebssystem-Erfassung
-- [x] IP-Erfassung
-- [x] CPU-Erfassung
-- [x] CPU-Kern-Erfassung
-- [x] RAM-Erfassung
-- [ ] Betriebssystem-Version separat erfassen
-- [ ] Hersteller erfassen
-- [ ] Modell erfassen
-- [ ] Seriennummer erfassen
-- [ ] Netzwerk-Erfassung erweitern
-- [ ] weitere Hardwareinformationen
-
-### Scanner
-
-- [x] LocalScanner
-- [ ] Proxmox Scanner
-- [ ] TrueNAS Scanner
-- [ ] Docker Scanner
-- [ ] Netzwerkgeräte Scanner
-- [ ] Storage Scanner
-- [ ] VM-Erfassung
-- [ ] Container-Erfassung
-- [ ] Backup-Erfassung
-
-### Export
-
-- [x] JSON
-- [x] Markdown
-- [ ] HTML
-- [ ] PDF
-- [ ] YAML
-
-### Dokumentation
-
-- [ ] automatische Netzwerkübersicht
-- [ ] Hardwareübersicht
-- [ ] Storageübersicht
-- [ ] Backupübersicht
-- [ ] automatische Diagramme
-
-### Integrationen
-
-- [ ] Confluence
-- [ ] GitHub-Integration
-- [ ] GitHub Actions
-- [ ] Mermaid
-- [ ] PlantUML
-
-### Qualität und Betrieb
-
-- [x] automatisierte Tests
-- [x] Ruff
-- [x] Black
-- [ ] Logging
-- [ ] erweiterte Testabdeckung
-- [ ] plattformübergreifende Scanner-Architektur
-
----
-
-## 💻 Anforderungen
-
-Aktuell:
-
-- Python 3.13 oder neuer
-- Windows, Linux oder ein anderes unterstütztes Betriebssystem
-- virtuelle Umgebung empfohlen
-
-Installation der Entwicklungsumgebung:
-
-```powershell
-python -m pip install -e ".[dev]"
-```
-
----
-
-## 🚀 Verwendung
-
-Das Programm kann aktuell über die CLI gestartet werden:
-
-```powershell
-python .\main.py
-```
-
-Ein Scan kann außerdem mit einem alternativen Ziel gestartet werden:
-
-```powershell
-python .\main.py --target proxmox
-```
-
-Die tatsächliche Unterstützung verschiedener Zielsysteme wird schrittweise erweitert.
-
----
-
-## 📁 Projektstruktur
-
-```text
-D:\E
+vita_inventory/
+├── core/
+│   └── config.py
 │
-├── .venv/
+├── exporters/
+│   ├── json.py
+│   └── markdown.py
 │
-├── vita_inventory/
-│   ├── core/
-│   ├── exporters/
-│   ├── models/
-│   ├── scanners/
-│   ├── services/
-│   └── utils/
+├── models/
+│   ├── device.py
+│   ├── inventory.py
+│   ├── network.py
+│   └── system.py
 │
-├── tests/
+├── scanners/
+│   ├── discovery.py
+│   ├── local.py
+│   └── network.py
 │
-├── config.yaml
-├── main.py
-├── pyproject.toml
-├── README.md
-└── requirements.txt
+└── ...
+
+tests/
+├── test_inventory.py
+├── test_json_exporter.py
+├── test_local_scanner.py
+├── test_markdown_exporter.py
+├── test_network_discovery.py
+├── test_network_scanner.py
+└── test_system.py
 ```
 
----
+## Entwicklungsprinzipien
 
-## 📄 Lizenz
+Vita Inventory wird schrittweise und testgetrieben erweitert.
 
-Vita Inventory steht unter der **MIT License**.
+Grundprinzipien:
 
-Das Projekt befindet sich aktuell in aktiver Entwicklung.
+* Scanner ermitteln Daten.
+* Models repräsentieren Daten.
+* `Inventory` führt die Ergebnisse zusammen.
+* Exporter stellen Daten dar.
+* Änderungen werden durch automatisierte Tests abgesichert.
+* Keine unnötig aggressiven Netzwerk-Scans.
+* Keine Abhängigkeit von externen Hardware-Datenbanken für die grundlegende Inventarisierung.
 
----
+## Entwicklungsstatus
 
-## 📌 Hinweis
+Das Projekt befindet sich weiterhin in aktiver Entwicklung.
 
-Vita Inventory befindet sich noch in einer frühen Entwicklungsphase.
+Der aktuelle Schwerpunkt liegt auf dem Aufbau eines stabilen Inventory-Gesamtmodells und einer modularen Architektur.
 
-Die aktuelle Version konzentriert sich zunächst auf eine saubere Grundlage für:
-
-1. Systemerkennung
-2. strukturierte Inventardaten
-3. automatisierte Tests
-4. Export und Dokumentation
-
-Weitere Scanner, Hardwareinformationen, Exportformate und Integrationen werden schrittweise ergänzt.
+Geplante Erweiterungen werden erst integriert, wenn die jeweilige Funktionalität implementiert und getestet ist.
