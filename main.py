@@ -1,9 +1,12 @@
+from pathlib import Path
 from typing import Optional
 
 import typer
 from rich.console import Console
 
-from vita_inventory.models.server import Server
+from vita_inventory.core.config import load_config
+from vita_inventory.scanners.local import LocalScanner
+
 
 app = typer.Typer(
     name="Vita Inventory",
@@ -20,18 +23,16 @@ def scan(
         "--target",
         "-t",
         help="Zu scannendes Ziel",
-    )
+    ),
 ):
-    """Startet einen Testlauf."""
+    """Startet einen Inventarisierungslauf."""
 
-    server = Server(
-        hostname="proxmox",
-        ip_address="192.168.178.130",
-        operating_system="Debian 13",
-        cpu_model="AMD Ryzen 7 5700G",
-        cpu_cores=8,
-        memory_gb=32,
-    )
+    config = load_config(Path("config.yaml"))
+
+    effective_target = target or config.scan.target
+
+    scanner = LocalScanner()
+    server = scanner.scan()
 
     console.print("[bold green]Vita Inventory[/bold green]")
     console.print("Version: 0.1.0\n")
@@ -43,8 +44,8 @@ def scan(
     console.print(f"Kerne: {server.cpu_cores}")
     console.print(f"RAM: {server.memory_gb} GB")
 
-    if target:
-        console.print(f"\nZiel: {target}")
+    if effective_target:
+        console.print(f"\nZiel: {effective_target}")
 
 
 if __name__ == "__main__":
