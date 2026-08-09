@@ -3,14 +3,14 @@ from typing import Optional
 
 
 @dataclass(slots=True)
-class Server:
+class System:
     """
-    Repräsentiert einen physischen oder virtuellen Server.
+    Repräsentiert ein physisches oder virtuelles Computersystem.
     """
 
     hostname: str
-    ip_address: str
     operating_system: str
+    ip_address: Optional[str] = None
 
     cpu_model: Optional[str] = None
     cpu_cores: Optional[int] = None

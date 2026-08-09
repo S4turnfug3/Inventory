@@ -3,7 +3,7 @@ import socket
 
 import psutil
 
-from vita_inventory.models.server import Server
+from vita_inventory.models.system import System
 
 
 class LocalScanner:
@@ -20,7 +20,8 @@ class LocalScanner:
         finally:
             sock.close()
 
-    def scan(self) -> Server:
+    def scan(self) -> System:
+
         """Liest grundlegende Hardware- und Systeminformationen aus."""
 
         hostname = platform.node()
@@ -30,7 +31,7 @@ class LocalScanner:
         cpu_cores = psutil.cpu_count(logical=False)
         memory_gb = round(psutil.virtual_memory().total / (1024**3), 2)
 
-        return Server(
+        return System(
             hostname=hostname,
             ip_address=ip_address,
             operating_system=operating_system,
