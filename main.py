@@ -95,7 +95,7 @@ def scan(
         export_markdown(inventory, output_file)
 
     console.print("[bold green]Vita Inventory[/bold green]")
-    console.print("Version: 0.3.0\n")
+    console.print("Version: 0.4.0\n")
 
     console.print(f"Hostname: {inventory.system.hostname}")
     console.print(f"IP-Adresse: {inventory.system.ip_address}")
