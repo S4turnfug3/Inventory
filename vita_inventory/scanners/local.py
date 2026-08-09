@@ -21,7 +21,6 @@ class LocalScanner:
             sock.close()
 
     def scan(self) -> System:
-
         """Liest grundlegende Hardware- und Systeminformationen aus."""
 
         hostname = platform.node()

@@ -21,8 +21,16 @@ dependencies = [
     "psutil>=7.0.0"
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.12.0",
+    "black>=25.0.0",
+]
+
 [tool.black]
 line-length = 88
+target-version = ["py313"]
 
 [tool.ruff]
 line-length = 88

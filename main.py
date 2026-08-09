@@ -7,7 +7,6 @@ from rich.console import Console
 from vita_inventory.core.config import load_config
 from vita_inventory.scanners.local import LocalScanner
 
-
 app = typer.Typer(
     name="Vita Inventory",
     help="Professionelles Inventarisierungstool für Homelab und Server.",
