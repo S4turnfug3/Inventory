@@ -1,6 +1,6 @@
 [project]
 name = "vita-inventory"
-version = "0.1.0"
+version = "0.3.0"
 description = "Professionelles Inventarisierungs- und Dokumentationstool für Homelab-Infrastrukturen."
 readme = "README.md"
 requires-python = ">=3.13"
@@ -25,7 +25,7 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "ruff>=0.12.0",
-    "black>=25.0.0",
+    "black>=25.0.0"
 ]
 
 [tool.black]

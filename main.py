@@ -7,6 +7,8 @@ from rich.console import Console
 from vita_inventory.core.config import load_config
 from vita_inventory.scanners.local import LocalScanner
 from vita_inventory.exporters.json import export_system
+from vita_inventory.exporters.json import export_system as export_json
+from vita_inventory.exporters.markdown import export_system as export_markdown
 
 app = typer.Typer(
     name="Vita Inventory",
@@ -38,7 +40,14 @@ def scan(
         output_directory.mkdir(parents=True, exist_ok=True)
 
         output_file = output_directory / "system.json"
-        export_system(system, output_file)
+        export_json(system, output_file)
+
+    if "markdown" in config.output.formats:
+        output_directory = Path(config.output.directory)
+        output_directory.mkdir(parents=True, exist_ok=True)
+
+        output_file = output_directory / "system.md"
+        export_markdown(system, output_file)
 
     console.print("[bold green]Vita Inventory[/bold green]")
     console.print("Version: 0.1.0\n")
