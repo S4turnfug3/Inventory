@@ -11,7 +11,7 @@ REM ============================================================
 cd /d "%~dp0"
 
 set "INSTALL_DIR=%~dp0Vita-Inventory"
-set "REPO_URL=https://github.com/S4turnfug3/Inventory/archive/refs/heads/agent/inventory-aggregate-model.zip"
+set "REPO_URL=https://github.com/S4turnfug3/Inventory/archive/refs/heads/main.zip"
 set "ZIP_FILE=%TEMP%\VitaInventory_%RANDOM%.zip"
 set "EXTRACT_DIR=%TEMP%\VitaInventory_%RANDOM%"
 
@@ -116,7 +116,8 @@ REM ------------------------------------------------------------
 echo.
 echo [3/6] Vita Inventory wird heruntergeladen...
 echo.
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; Invoke-WebRequest -UseBasicParsing -Uri '%REPO_URL%' -OutFile '%ZIP_FILE%'"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ProgressPreference='SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -UseBasicParsing -Uri '%REPO_URL%' -OutFile '%ZIP_FILE%'"
+
 if errorlevel 1 (
     echo FEHLER: Vita Inventory konnte nicht heruntergeladen werden.
     del /q "%ZIP_FILE%" >nul 2>&1
@@ -146,7 +147,10 @@ if errorlevel 1 (
     exit /b 1
 )
 set "SOURCE_DIR="
-for /d %%D in ("%EXTRACT_DIR%\Inventory-*") do set "SOURCE_DIR=%%~fD"
+for /d %%D in ("%EXTRACT_DIR%\inventory-*") do set "SOURCE_DIR=%%~fD"
+if not defined SOURCE_DIR (
+    for /d %%D in ("%EXTRACT_DIR%\Inventory-*") do set "SOURCE_DIR=%%~fD"
+)
 if not defined SOURCE_DIR (
     echo FEHLER: Die Projektstruktur im Archiv wurde nicht erkannt.
     del /q "%ZIP_FILE%" >nul 2>&1
@@ -313,14 +317,14 @@ set "CHECK_RESULT=%ERRORLEVEL%"
 echo.
 if "%CHECK_RESULT%"=="0" (
     echo ============================================================
-    echo ALLES OK - Vita Inventory ist einsatzbereit.
+    echo Alles bereit. Vita Inventory kann ueber Start.bat gestartet werden.
     echo ============================================================
 ) else (
     echo ============================================================
-    echo HINWEIS: Die Installation ist vorhanden, aber der Projektcheck hat Fehler gemeldet.
+    echo Der Projektcheck hat Fehler gemeldet. Bitte oben nachlesen.
     echo ============================================================
 )
 echo.
-echo Druecke eine Taste zum Beenden.
-pause >nul
+pause
+endlocal
 exit /b %CHECK_RESULT%
