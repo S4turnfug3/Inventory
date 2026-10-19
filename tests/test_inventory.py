@@ -60,4 +60,3 @@ def test_inventory_contains_network_devices():
     )
 
     assert inventory.network_devices == [device]
-``
