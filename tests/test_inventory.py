@@ -6,7 +6,7 @@ from vita_inventory.models.system import System
 
 def test_inventory_contains_system():
     system = System(
-        hostname="Test-PC",
+        hostname="test-workstation",
         operating_system="Windows 11",
     )
 
@@ -19,16 +19,16 @@ def test_inventory_contains_system():
 
 def test_inventory_contains_network_information():
     system = System(
-        hostname="Test-PC",
+        hostname="test-workstation",
         operating_system="Windows 11",
     )
 
     network = NetworkInfo(
         interface="Ethernet",
-        ip_address="192.168.1.100",
+        ip_address="192.0.2.100",
         prefix_length=24,
-        network="192.168.1.0/24",
-        gateway="192.168.1.1",
+        network="192.0.2.0/24",
+        gateway="192.0.2.1",
     )
 
     inventory = Inventory(
@@ -42,14 +42,14 @@ def test_inventory_contains_network_information():
 
 def test_inventory_contains_network_devices():
     system = System(
-        hostname="Test-PC",
+        hostname="test-workstation",
         operating_system="Windows 11",
     )
 
     device = NetworkDevice(
-        ip_address="192.168.1.50",
-        mac_address="AA:BB:CC:DD:EE:FF",
-        hostname="Test-Device",
+        ip_address="192.0.2.50",
+        mac_address="02:00:00:AB:CD:EF",
+        hostname="test-printer",
         interface="Ethernet",
         state="Reachable",
     )
@@ -60,3 +60,4 @@ def test_inventory_contains_network_devices():
     )
 
     assert inventory.network_devices == [device]
+``
