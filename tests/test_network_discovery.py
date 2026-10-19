@@ -1,21 +1,30 @@
-from vita_inventory.scanners.network import NetworkScanner
+from vita_inventory.scanners.discovery import NetworkDiscovery
 
 
-def test_network_scanner_returns_network_info():
-    scanner = NetworkScanner()
+def test_network_discovery_returns_list():
+    scanner = NetworkDiscovery()
 
-    result = scanner.scan()
+    devices = scanner.scan()
 
-    if result is not None:
-        assert result.interface
-        assert result.ip_address
-        assert result.prefix_length > 0
-        assert result.network
+    assert isinstance(devices, list)
 
 
-def test_network_scanner_handles_scan():
-    scanner = NetworkScanner()
+def test_network_discovery_devices_have_required_fields():
+    scanner = NetworkDiscovery()
 
-    result = scanner.scan()
+    devices = scanner.scan()
 
-    assert result is None or result.ip_address
+    for device in devices:
+        assert device.ip_address
+        assert device.mac_address
+        assert device.interface
+        assert device.state
+
+
+def test_network_discovery_empty_scan_returns_list():
+    scanner = NetworkDiscovery()
+
+    devices = scanner.scan()
+
+    assert devices is not None
+    assert isinstance(devices, list)
