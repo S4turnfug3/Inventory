@@ -2,7 +2,7 @@
 
 Vita Inventory ist ein modulares Inventarisierungstool für Homelab-, Desktop- und Server-Umgebungen.
 
-Das Projekt sammelt lokale Systeminformationen, ermittelt das aktive IPv4-Netzwerk und kann bekannte Geräte innerhalb dieses Netzwerks erfassen.
+Das Projekt sammelt lokale Systeminformationen, ermittelt aktive IPv4-Netzwerke und kann bekannte Geräte innerhalb des primären Netzwerks erfassen.
 
 Unterstützte Betriebssysteme: Windows und Linux.
 
@@ -17,8 +17,8 @@ Der aktuelle Entwicklungsstand umfasst:
 * Hardwareinformationen
 * Hersteller-, Modell- und Seriennummer-Ermittlung unter Windows
 * Ermittlung der lokalen IPv4-Adresse
-* Ermittlung des primären aktiven IPv4-Netzwerks
-* Ermittlung des Gateways
+* Ermittlung aller aktiven IPv4-Interfaces, einschließlich verbundener VPN-Adapter
+* Ermittlung des Gateways pro Interface, sofern vorhanden
 * Erkennung bekannter Netzwerkgeräte über die Windows-Nachbarschaftstabelle
 * zentrales `Inventory`-Gesamtmodell
 * JSON-Export
@@ -73,7 +73,7 @@ Beschreibt den lokalen Rechner:
 
 #### NetworkInfo
 
-Beschreibt das aktive lokale IPv4-Netzwerk:
+Beschreibt ein aktives lokales IPv4-Interface:
 
 * Netzwerkinterface
 * IPv4-Adresse
@@ -99,6 +99,7 @@ Beschreibt ein erkanntes Gerät innerhalb des Netzwerks:
 Inventory
 ├── system
 ├── network
+├── networks[]
 └── network_devices[]
 ```
 
@@ -114,9 +115,9 @@ Unter Windows werden zusätzlich Informationen über `Win32_ComputerSystem` und 
 
 ### NetworkScanner
 
-Der `NetworkScanner` ermittelt das primäre aktive IPv4-Netzwerk des lokalen Rechners.
+Der `NetworkScanner` ermittelt alle aktiven IPv4-Interfaces des lokalen Rechners. Das Interface mit der Standardroute steht zusätzlich als primäres `network` bereit; alle Interfaces werden in `networks` gespeichert.
 
-Dabei werden unter anderem Interface, IPv4-Adresse, Präfixlänge und Standard-Gateway ermittelt.
+Dabei werden unter anderem Interface, IPv4-Adresse, Präfixlänge und Standard-Gateway ermittelt. Verbundene VPN-Adapter werden wie andere aktive Interfaces erfasst. Getrennte Adapter besitzen keine aktive IPv4-Konfiguration und erscheinen daher nicht in der Netzwerkliste.
 
 ### NetworkDiscovery
 

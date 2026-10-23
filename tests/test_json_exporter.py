@@ -55,6 +55,7 @@ def test_export_inventory(tmp_path):
     assert data["network"]["interface"] == "Ethernet"
     assert data["network"]["network"] == "192.168.1.0/24"
     assert data["network"]["gateway"] == "192.168.1.1"
+    assert data["networks"][0]["interface"] == "Ethernet"
 
     assert len(data["network_devices"]) == 1
     assert data["network_devices"][0]["ip_address"] == "192.168.1.50"

@@ -59,7 +59,23 @@ def scan(
         )
 
     scanned_system = LocalScanner().scan()
-    scanned_network = NetworkScanner().scan()
+    scanned_networks = NetworkScanner().scan_all()
+    networks = [
+        NetworkInfo(
+            interface=scanned_network.interface,
+            ip_address=scanned_network.ipv4_address,
+            prefix_length=scanned_network.ipv4_prefix,
+            network=scanned_network.ipv4_network,
+            gateway=scanned_network.ipv4_gateway,
+        )
+        for scanned_network in scanned_networks
+        if (
+            scanned_network.ipv4_address is not None
+            and scanned_network.ipv4_prefix is not None
+            and scanned_network.ipv4_network is not None
+        )
+    ]
+    network = networks[0] if networks else None
 
     system = System(
         hostname=scanned_system.hostname,
@@ -68,32 +84,16 @@ def scan(
         manufacturer=scanned_system.manufacturer,
         model=scanned_system.model,
         serial_number=scanned_system.serial_number,
-        ip_address=(
-            scanned_network.ipv4_address if scanned_network is not None else None
-        ),
+        ip_address=network.ip_address if network is not None else None,
         cpu_model=scanned_system.cpu_model,
         cpu_cores=scanned_system.cpu_count,
         memory_gb=scanned_system.memory_gb,
     )
 
-    network = None
-    if (
-        scanned_network is not None
-        and scanned_network.ipv4_address is not None
-        and scanned_network.ipv4_prefix is not None
-        and scanned_network.ipv4_network is not None
-    ):
-        network = NetworkInfo(
-            interface=scanned_network.interface,
-            ip_address=scanned_network.ipv4_address,
-            prefix_length=scanned_network.ipv4_prefix,
-            network=scanned_network.ipv4_network,
-            gateway=scanned_network.ipv4_gateway,
-        )
-
     inventory = Inventory(
         system=system,
         network=network,
+        networks=networks,
     )
 
     if network is not None:
@@ -107,8 +107,18 @@ def scan(
             f"[bold green]Gateway:[/bold green] "
             f"{network.gateway or 'Nicht ermittelt'}"
         )
+        console.print(
+            f"[bold green]Aktive IPv4-Interfaces:[/bold green] "
+            f"{len(inventory.networks)}"
+        )
+        for network_interface in inventory.networks:
+            console.print(
+                f"  {network_interface.interface}: "
+                f"{network_interface.ip_address}/"
+                f"{network_interface.prefix_length}"
+            )
 
-        discovery = NetworkDiscovery(scanned_network.to_dict())
+        discovery = NetworkDiscovery()
         inventory.network_devices = [
             NetworkDevice(
                 ip_address=device.ipv4_address,

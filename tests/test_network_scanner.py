@@ -64,3 +64,52 @@ def test_windows_gateway_uses_interface_alias(monkeypatch):
 
     assert gateway == "192.168.1.1"
     assert "Ethernet 2" in captured_command[-1]
+
+
+def test_scan_all_includes_active_vpn_and_excludes_disconnected_adapters(monkeypatch):
+    scanner = NetworkScanner()
+    addresses = {
+        "Ethernet": [
+            SimpleNamespace(
+                family=socket.AF_INET,
+                address="192.168.1.20",
+                netmask="255.255.255.0",
+            )
+        ],
+        "NordLynx": [
+            SimpleNamespace(
+                family=socket.AF_INET,
+                address="10.8.0.2",
+                netmask="255.255.255.0",
+            )
+        ],
+        "Disconnected VPN": [
+            SimpleNamespace(
+                family=socket.AF_INET,
+                address="10.9.0.2",
+                netmask="255.255.255.0",
+            )
+        ],
+    }
+    monkeypatch.setattr(
+        psutil,
+        "net_if_stats",
+        lambda: {
+            "Ethernet": SimpleNamespace(isup=True),
+            "NordLynx": SimpleNamespace(isup=True),
+            "Disconnected VPN": SimpleNamespace(isup=False),
+        },
+    )
+    monkeypatch.setattr(psutil, "net_if_addrs", lambda: addresses)
+    monkeypatch.setattr(scanner, "_get_default_interface_windows", lambda: "Ethernet")
+    monkeypatch.setattr(
+        scanner,
+        "_get_default_gateway_windows",
+        lambda interface: "192.168.1.1" if interface == "Ethernet" else None,
+    )
+
+    networks = scanner.scan_all()
+
+    assert [network.interface for network in networks] == ["Ethernet", "NordLynx"]
+    assert networks[0].ipv4_gateway == "192.168.1.1"
+    assert networks[1].ipv4_address == "10.8.0.2"

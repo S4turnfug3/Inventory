@@ -26,6 +26,12 @@ def test_export_inventory_to_markdown(tmp_path):
         network="192.168.1.0/24",
         gateway="192.168.1.1",
     )
+    vpn_network = NetworkInfo(
+        interface="NordLynx",
+        ip_address="10.8.0.2",
+        prefix_length=24,
+        network="10.8.0.0/24",
+    )
 
     device = NetworkDevice(
         ip_address="192.168.1.50",
@@ -38,6 +44,7 @@ def test_export_inventory_to_markdown(tmp_path):
     inventory = Inventory(
         system=system,
         network=network,
+        networks=[network, vpn_network],
         network_devices=[device],
     )
 
@@ -62,6 +69,8 @@ def test_export_inventory_to_markdown(tmp_path):
     assert "**Interface:** Ethernet" in content
     assert "**Netzwerk:** 192.168.1.0/24" in content
     assert "**Gateway:** 192.168.1.1" in content
+    assert "### NordLynx" in content
+    assert "**IP-Adresse:** 10.8.0.2" in content
 
     assert "## Netzwerkgeräte" in content
     assert "**Gefundene Geräte:** 1" in content

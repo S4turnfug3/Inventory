@@ -1,5 +1,6 @@
 """Local system scanner for supported Windows and Linux systems."""
 
+import json
 import platform
 import sys
 import socket
@@ -191,30 +192,33 @@ class LocalScanner:
     
     def _get_windows_hardware(self) -> tuple:
         """Ermittelt Hardware-Infos auf Windows."""
-        manufacturer = None
-        model = None
-        serial = None
-        
         try:
-            # WMI Query
             output = subprocess.check_output(
-                'wmic computersystem get manufacturer,model,serialnumber',
-                shell=True,
+                [
+                    'powershell.exe',
+                    '-NoProfile',
+                    '-NonInteractive',
+                    '-Command',
+                    '$computer = Get-CimInstance Win32_ComputerSystem; '
+                    '$bios = Get-CimInstance Win32_BIOS; '
+                    '[PSCustomObject]@{ manufacturer = $computer.Manufacturer; '
+                    'model = $computer.Model; serial_number = $bios.SerialNumber } '
+                    '| ConvertTo-Json -Compress',
+                ],
                 stderr=subprocess.DEVNULL,
-                text=True
+                text=True,
+                encoding='utf-8',
+                timeout=10,
             )
-            lines = output.strip().split('\n')
-            if len(lines) > 1:
-                parts = lines[1].split()
-                if len(parts) >= 3:
-                    manufacturer = parts[0]
-                    model = parts[1]
-                    serial = parts[2]
-        
+            hardware = json.loads(output)
+            return (
+                hardware.get('manufacturer'),
+                hardware.get('model'),
+                hardware.get('serial_number'),
+            )
         except Exception as e:
             logger.debug(f"Windows Hardware konnte nicht ermittelt werden: {e}")
-        
-        return manufacturer, model, serial
+            return None, None, None
     
     def _get_linux_hardware(self) -> tuple:
         """Ermittelt Hardware-Infos auf Linux."""

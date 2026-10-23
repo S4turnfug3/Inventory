@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 
 import psutil
@@ -71,3 +72,23 @@ def test_memory_uses_psutil(monkeypatch):
     )
 
     assert LocalScanner()._get_memory() == 16.0
+
+
+def test_windows_hardware_uses_structured_cim_output(monkeypatch):
+    scanner = LocalScanner()
+    monkeypatch.setattr(
+        "vita_inventory.scanners.local.subprocess.check_output",
+        lambda *args, **kwargs: json.dumps(
+            {
+                "manufacturer": "Example Manufacturer",
+                "model": "Example Model 5000",
+                "serial_number": "EXAMPLE-123",
+            }
+        ),
+    )
+
+    assert scanner._get_windows_hardware() == (
+        "Example Manufacturer",
+        "Example Model 5000",
+        "EXAMPLE-123",
+    )

@@ -52,6 +52,80 @@ class NetworkScanner:
         self.platform = sys.platform
         self.ipv6_enabled = ipv6_enabled
         logger.info(f"NetworkScanner initialisiert (IPv6: {ipv6_enabled})")
+
+    def scan_all(self) -> List[NetworkInfo]:
+        """Ermittelt IPv4-Netze aller aktiven Interfaces."""
+        try:
+            default_interface = (
+                self._get_default_interface_windows()
+                if self.platform == 'win32'
+                else self._get_default_interface_unix()
+            )
+            interface_stats = psutil.net_if_stats()
+            interface_addresses = psutil.net_if_addrs()
+            networks = []
+
+            for interface, addresses in interface_addresses.items():
+                status = interface_stats.get(interface)
+                if status is None or not status.isup:
+                    continue
+
+                for address in addresses:
+                    if address.family != socket.AF_INET or not address.netmask:
+                        continue
+
+                    ipv4_address = IPv4Address(address.address)
+                    if (
+                        ipv4_address.is_loopback
+                        or ipv4_address.is_link_local
+                        or ipv4_address.is_unspecified
+                        or ipv4_address.is_multicast
+                    ):
+                        continue
+
+                    prefix = self._mask_to_prefix(address.netmask)
+                    network = IPv4Network(
+                        f"{ipv4_address}/{prefix}", strict=False
+                    )
+                    gateway = (
+                        self._get_default_gateway_windows(interface)
+                        if self.platform == 'win32'
+                        else self._get_default_gateway_unix(interface)
+                    )
+                    networks.append(
+                        NetworkInfo(
+                            interface=interface,
+                            ipv4_address=str(ipv4_address),
+                            ipv4_prefix=prefix,
+                            ipv4_network=str(network),
+                            ipv4_gateway=gateway,
+                        )
+                    )
+
+            networks.sort(key=lambda item: item.interface != default_interface)
+            return networks
+        except Exception as e:
+            logger.error(f"Aktive Netzwerke konnten nicht ermittelt werden: {e}")
+            return []
+
+    @staticmethod
+    def _get_default_gateway_unix(interface: str) -> Optional[str]:
+        """Ermittelt das IPv4-Default-Gateway eines Linux-Interfaces."""
+        try:
+            output = subprocess.check_output(
+                ['ip', 'route', 'show', 'dev', interface],
+                stderr=subprocess.DEVNULL,
+                text=True,
+            )
+            for line in output.splitlines():
+                parts = line.split()
+                if 'default' in parts and 'via' in parts:
+                    gateway_index = parts.index('via') + 1
+                    if gateway_index < len(parts):
+                        return parts[gateway_index]
+        except Exception as e:
+            logger.debug(f"Gateway für {interface} konnte nicht ermittelt werden: {e}")
+        return None
     
     def scan(self) -> Optional[NetworkInfo]:
         """Scannt das primäre aktive Netzwerk."""

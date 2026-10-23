@@ -62,7 +62,18 @@ def test_scan_normalizes_scanner_data_before_export(monkeypatch, tmp_path):
 
     monkeypatch.setattr(main, "load_config", lambda _: config)
     monkeypatch.setattr(main.LocalScanner, "scan", lambda _: system)
-    monkeypatch.setattr(main.NetworkScanner, "scan", lambda _: network)
+    vpn_network = ScannedNetworkInfo(
+        interface="NordLynx",
+        ipv4_address="10.8.0.2",
+        ipv4_prefix=24,
+        ipv4_network="10.8.0.0/24",
+        ipv4_gateway=None,
+    )
+    monkeypatch.setattr(
+        main.NetworkScanner,
+        "scan_all",
+        lambda _: [network, vpn_network],
+    )
     monkeypatch.setattr(main.NetworkDiscovery, "scan", lambda _: [device])
 
     result = CliRunner().invoke(main.app, ["scan"])
@@ -71,7 +82,13 @@ def test_scan_normalizes_scanner_data_before_export(monkeypatch, tmp_path):
     exported = json.loads((tmp_path / "inventory.json").read_text(encoding="utf-8"))
     assert exported["system"]["operating_system"] == "Windows"
     assert exported["network"]["network"] == "192.168.1.0/24"
+    assert [item["interface"] for item in exported["networks"]] == [
+        "Ethernet",
+        "NordLynx",
+    ]
     assert exported["network_devices"][0]["state"] == "online"
     assert "**Betriebssystem:** Windows" in (
         tmp_path / "inventory.md"
     ).read_text(encoding="utf-8")
+    markdown = (tmp_path / "inventory.md").read_text(encoding="utf-8")
+    assert "### NordLynx" in markdown

@@ -60,3 +60,45 @@ def test_inventory_contains_network_devices():
     )
 
     assert inventory.network_devices == [device]
+
+
+def test_inventory_can_contain_multiple_networks():
+    system = System(
+        hostname="test-workstation",
+        operating_system="Windows 11",
+    )
+    networks = [
+        NetworkInfo(
+            interface="Ethernet",
+            ip_address="192.0.2.100",
+            prefix_length=24,
+            network="192.0.2.0/24",
+        ),
+        NetworkInfo(
+            interface="NordLynx",
+            ip_address="198.51.100.2",
+            prefix_length=24,
+            network="198.51.100.0/24",
+        ),
+    ]
+
+    inventory = Inventory(system=system, network=networks[0], networks=networks)
+
+    assert inventory.networks == networks
+
+
+def test_inventory_copies_legacy_primary_network_into_network_list():
+    system = System(
+        hostname="test-workstation",
+        operating_system="Windows 11",
+    )
+    network = NetworkInfo(
+        interface="Ethernet",
+        ip_address="192.0.2.100",
+        prefix_length=24,
+        network="192.0.2.0/24",
+    )
+
+    inventory = Inventory(system=system, network=network)
+
+    assert inventory.networks == [network]

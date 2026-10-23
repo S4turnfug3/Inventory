@@ -11,6 +11,7 @@ def export_inventory(inventory: Inventory, path: Path) -> None:
 
     system = data["system"]
     network = data["network"]
+    networks = data["networks"] or ([network] if network is not None else [])
     network_devices = data["network_devices"]
 
     lines = [
@@ -48,7 +49,7 @@ def export_inventory(inventory: Inventory, path: Path) -> None:
         "",
     ]
 
-    if network is None:
+    if not networks:
         lines.extend(
             [
                 "- Kein aktives IPv4-Netzwerk gefunden.",
@@ -56,17 +57,19 @@ def export_inventory(inventory: Inventory, path: Path) -> None:
             ]
         )
     else:
-        lines.extend(
-            [
-                f"- **Interface:** {network['interface']}",
-                f"- **IP-Adresse:** {network['ip_address']}",
-                f"- **Präfixlänge:** {network['prefix_length']}",
-                f"- **Netzwerk:** {network['network']}",
-                f"- **Gateway:** "
-                f"{network['gateway'] or 'Nicht ermittelt'}",
-                "",
-            ]
-        )
+        for network_interface in networks:
+            lines.extend(
+                [
+                    f"### {network_interface['interface']}",
+                    f"- **Interface:** {network_interface['interface']}",
+                    f"- **IP-Adresse:** {network_interface['ip_address']}",
+                    f"- **Präfixlänge:** {network_interface['prefix_length']}",
+                    f"- **Netzwerk:** {network_interface['network']}",
+                    f"- **Gateway:** "
+                    f"{network_interface['gateway'] or 'Nicht ermittelt'}",
+                    "",
+                ]
+            )
 
     lines.extend(
         [
