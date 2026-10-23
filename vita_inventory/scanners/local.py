@@ -7,6 +7,9 @@ import subprocess
 from pathlib import Path
 from typing import Dict, Any, Optional
 from dataclasses import dataclass
+
+import psutil
+
 from vita_inventory.core.logger import setup_logger, PerformanceLogger
 
 logger = setup_logger(__name__)
@@ -120,12 +123,20 @@ class LocalScanner:
         try:
             if self.os_type == 'Windows':
                 output = subprocess.check_output(
-                    'wmic cpu get name',
-                    shell=True,
+                    [
+                        'powershell.exe',
+                        '-NoProfile',
+                        '-NonInteractive',
+                        '-Command',
+                        '(Get-CimInstance Win32_Processor | '
+                        'Select-Object -First 1 -ExpandProperty Name)',
+                    ],
                     stderr=subprocess.DEVNULL,
-                    text=True
+                    text=True,
+                    encoding='utf-8',
+                    timeout=10,
                 )
-                return output.split('\n')[1].strip() if len(output.split('\n')) > 1 else None
+                return output.strip() or None
             
             elif self.os_type == 'Linux':
                 with open('/proc/cpuinfo', 'r') as f:
@@ -149,15 +160,13 @@ class LocalScanner:
     def _get_memory(self) -> float:
         """Ermittelt Arbeitsspeicher in GB."""
         try:
+            return round(psutil.virtual_memory().total / (1024 ** 3), 2)
+        except Exception as e:
+            logger.warning(f"Speicher konnte nicht ermittelt werden: {e}")
+
+        try:
             if self.os_type == 'Windows':
-                output = subprocess.check_output(
-                    'wmic computersystem get totalphysicalmemory',
-                    shell=True,
-                    stderr=subprocess.DEVNULL,
-                    text=True
-                )
-                bytes_val = int(output.split('\n')[1].strip())
-                return bytes_val / (1024**3)
+                return 0.0
             
             elif self.os_type == 'Linux':
                 with open('/proc/meminfo', 'r') as f:

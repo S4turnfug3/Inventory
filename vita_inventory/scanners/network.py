@@ -9,6 +9,9 @@ import subprocess
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
 from ipaddress import IPv4Address, IPv4Network, IPv6Address, ip_address
+
+import psutil
+
 from vita_inventory.core.logger import setup_logger, PerformanceLogger
 
 logger = setup_logger(__name__)
@@ -96,23 +99,24 @@ class NetworkScanner:
     def _get_default_interface_windows(self) -> Optional[str]:
         """Ermittelt primäre Schnittstelle auf Windows."""
         try:
-            output = subprocess.check_output(
-                'ipconfig /all',
-                shell=True,
-                stderr=subprocess.DEVNULL,
-                text=True,
-                encoding='utf-8'
-            )
-            
-            current_adapter = None
-            for line in output.split('\n'):
-                if 'Adapter' in line and ':' in line:
-                    current_adapter = line.split(':')[0].strip()
-                elif current_adapter and 'IPv4 Address' in line:
-                    return current_adapter
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as route_socket:
+                route_socket.connect(('192.0.2.1', 9))
+                local_address = route_socket.getsockname()[0]
+
+            interface_stats = psutil.net_if_stats()
+            for interface, addresses in psutil.net_if_addrs().items():
+                status = interface_stats.get(interface)
+                if status is None or not status.isup:
+                    continue
+                if any(
+                    address.family == socket.AF_INET
+                    and address.address == local_address
+                    for address in addresses
+                ):
+                    return interface
         
         except Exception as e:
-            logger.debug(f"ipconfig fehlgeschlagen: {e}")
+            logger.debug(f"Windows-Schnittstelle konnte nicht ermittelt werden: {e}")
         
         return None
     
@@ -151,47 +155,60 @@ class NetworkScanner:
             return None
     
     def _get_ipv4_info_windows(self, interface: str) -> Optional[Dict[str, Any]]:
-        """IPv4-Info auf Windows (via ipconfig)."""
+        """Ermittelt IPv4-Informationen über die Windows-Schnittstelle."""
+        try:
+            for address in psutil.net_if_addrs().get(interface, []):
+                if address.family != socket.AF_INET or not address.netmask:
+                    continue
+
+                ipv4_address = IPv4Address(address.address)
+                if ipv4_address.is_loopback or ipv4_address.is_link_local:
+                    continue
+
+                prefix = self._mask_to_prefix(address.netmask)
+                network = IPv4Network(f"{ipv4_address}/{prefix}", strict=False)
+                return {
+                    'address': str(ipv4_address),
+                    'prefix': prefix,
+                    'network': str(network),
+                    'gateway': self._get_default_gateway_windows(interface),
+                }
+
+        except Exception as e:
+            logger.debug(f"IPv4-Informationen für {interface} fehlgeschlagen: {e}")
+
+        return None
+
+    @staticmethod
+    def _get_default_gateway_windows(interface: str) -> Optional[str]:
+        """Ermittelt das IPv4-Gateway des angegebenen Windows-Interfaces."""
+        escaped_interface = interface.replace("'", "''")
+        command = (
+            f"(Get-NetIPConfiguration -InterfaceAlias '{escaped_interface}' "
+            "-ErrorAction Stop).IPv4DefaultGateway.NextHop"
+        )
+
         try:
             output = subprocess.check_output(
-                f'ipconfig /all',
-                shell=True,
+                [
+                    'powershell.exe',
+                    '-NoProfile',
+                    '-NonInteractive',
+                    '-Command',
+                    command,
+                ],
                 stderr=subprocess.DEVNULL,
                 text=True,
-                encoding='utf-8'
+                encoding='utf-8',
+                timeout=10,
             )
-            
-            info = {}
-            in_adapter = False
-            
-            for line in output.split('\n'):
-                if interface in line:
-                    in_adapter = True
-                elif in_adapter:
-                    if 'Adapter' in line and ':' in line:
-                        break
-                    
-                    if 'IPv4 Address' in line and 'Subnet Mask' not in line:
-                        info['address'] = line.split(':')[1].strip().split('(')[0].strip()
-                    elif 'Subnet Mask' in line:
-                        mask_str = line.split(':')[1].strip()
-                        info['prefix'] = self._mask_to_prefix(mask_str)
-                    elif 'Default Gateway' in line and info.get('address'):
-                        info['gateway'] = line.split(':')[1].strip()
-                        break
-            
-            if info.get('address') and info.get('prefix'):
-                # Berechne Netzwerk
-                addr = IPv4Address(info['address'])
-                prefix = info['prefix']
-                network = IPv4Network(f"{addr}/{prefix}", strict=False)
-                info['network'] = str(network)
-                return info
-        
+            return next(
+                (line.strip() for line in output.splitlines() if line.strip()),
+                None,
+            )
         except Exception as e:
-            logger.debug(f"IPv4 Windows-Parse fehlgeschlagen: {e}")
-        
-        return None
+            logger.debug(f"IPv4-Gateway für {interface} konnte nicht ermittelt werden: {e}")
+            return None
     
     def _get_ipv4_info_unix(self, interface: str) -> Optional[Dict[str, Any]]:
         """IPv4-Info auf Unix/Linux/macOS (via ip)."""

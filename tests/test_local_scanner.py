@@ -1,3 +1,6 @@
+from types import SimpleNamespace
+
+import psutil
 import pytest
 
 from vita_inventory.scanners.local import LocalScanner
@@ -47,3 +50,24 @@ def test_local_scanner_rejects_unsupported_operating_system(monkeypatch):
 
     with pytest.raises(RuntimeError, match="Unterstützt werden Windows und Linux"):
         LocalScanner().scan()
+
+
+def test_windows_cpu_model_uses_cim(monkeypatch):
+    scanner = LocalScanner()
+    scanner.os_type = "Windows"
+    monkeypatch.setattr(
+        "vita_inventory.scanners.local.subprocess.check_output",
+        lambda *args, **kwargs: "Example CPU\n",
+    )
+
+    assert scanner._get_cpu_model() == "Example CPU"
+
+
+def test_memory_uses_psutil(monkeypatch):
+    monkeypatch.setattr(
+        psutil,
+        "virtual_memory",
+        lambda: SimpleNamespace(total=16 * 1024**3),
+    )
+
+    assert LocalScanner()._get_memory() == 16.0
