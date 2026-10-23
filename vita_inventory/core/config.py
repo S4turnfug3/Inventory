@@ -5,7 +5,7 @@ Konfigurationsmanagement mit YAML und CLI-Parametern.
 import yaml
 from pathlib import Path
 from typing import Dict, Any, Optional, List
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from vita_inventory.core.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -38,6 +38,30 @@ class OutputConfig:
     def __post_init__(self):
         if self.formats is None:
             self.formats = ['json', 'markdown']
+
+
+@dataclass
+class ProjectConfig:
+    name: str = 'Vita Inventory'
+
+
+@dataclass
+class AppConfig:
+    project: ProjectConfig = field(default_factory=ProjectConfig)
+    scan: ScanConfig = field(default_factory=ScanConfig)
+    output: OutputConfig = field(default_factory=OutputConfig)
+
+
+def load_config(path: Path) -> AppConfig:
+    """Lädt die Projektkonfiguration aus einer YAML-Datei."""
+    with Path(path).open('r', encoding='utf-8') as config_file:
+        data = yaml.safe_load(config_file) or {}
+
+    return AppConfig(
+        project=ProjectConfig(**data.get('project', {})),
+        scan=ScanConfig(**data.get('scan', {})),
+        output=OutputConfig(**data.get('output', {})),
+    )
 
 
 @dataclass

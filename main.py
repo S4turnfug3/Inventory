@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Optional
 
 import typer
@@ -8,7 +9,10 @@ from vita_inventory.exporters.json import export_inventory as export_json
 from vita_inventory.exporters.markdown import (
     export_inventory as export_markdown,
 )
+from vita_inventory.models.device import NetworkDevice
 from vita_inventory.models.inventory import Inventory
+from vita_inventory.models.network import NetworkInfo
+from vita_inventory.models.system import System
 from vita_inventory.scanners.discovery import NetworkDiscovery
 from vita_inventory.scanners.local import LocalScanner
 from vita_inventory.scanners.network import NetworkScanner
@@ -20,6 +24,13 @@ app = typer.Typer(
 )
 
 console = Console()
+
+
+def _resolve_project_path(path: str | Path) -> Path:
+    resolved_path = Path(path).expanduser()
+    if not resolved_path.is_absolute():
+        resolved_path = Path(__file__).resolve().parent / resolved_path
+    return resolved_path
 
 
 @app.callback()
@@ -39,7 +50,7 @@ def scan(
 ):
     """Startet einen Inventarisierungslauf."""
 
-    config = load_config(Path("config.yaml"))
+    config = load_config(_resolve_project_path("config.yaml"))
     effective_target = target or config.scan.target
 
     if effective_target:
@@ -47,11 +58,38 @@ def scan(
             f"[bold cyan]Ziel erkannt:[/bold cyan] {effective_target}"
         )
 
-    local_scanner = LocalScanner()
-    system = local_scanner.scan()
+    scanned_system = LocalScanner().scan()
+    scanned_network = NetworkScanner().scan()
 
-    network_scanner = NetworkScanner()
-    network = network_scanner.scan()
+    system = System(
+        hostname=scanned_system.hostname,
+        operating_system=scanned_system.os_name,
+        operating_system_version=scanned_system.os_version,
+        manufacturer=scanned_system.manufacturer,
+        model=scanned_system.model,
+        serial_number=scanned_system.serial_number,
+        ip_address=(
+            scanned_network.ipv4_address if scanned_network is not None else None
+        ),
+        cpu_model=scanned_system.cpu_model,
+        cpu_cores=scanned_system.cpu_count,
+        memory_gb=scanned_system.memory_gb,
+    )
+
+    network = None
+    if (
+        scanned_network is not None
+        and scanned_network.ipv4_address is not None
+        and scanned_network.ipv4_prefix is not None
+        and scanned_network.ipv4_network is not None
+    ):
+        network = NetworkInfo(
+            interface=scanned_network.interface,
+            ip_address=scanned_network.ipv4_address,
+            prefix_length=scanned_network.ipv4_prefix,
+            network=scanned_network.ipv4_network,
+            gateway=scanned_network.ipv4_gateway,
+        )
 
     inventory = Inventory(
         system=system,
@@ -70,8 +108,17 @@ def scan(
             f"{network.gateway or 'Nicht ermittelt'}"
         )
 
-        discovery = NetworkDiscovery()
-        inventory.network_devices = discovery.discover(network)
+        discovery = NetworkDiscovery(scanned_network.to_dict())
+        inventory.network_devices = [
+            NetworkDevice(
+                ip_address=device.ipv4_address,
+                mac_address=device.mac_address,
+                hostname=device.hostname,
+                interface=device.interface,
+                state=device.status,
+            )
+            for device in discovery.scan()
+        ]
 
         console.print(
             f"[bold green]Netzwerkgeräte:[/bold green] "
@@ -82,7 +129,7 @@ def scan(
             "[bold yellow]Kein aktives IPv4-Netzwerk gefunden.[/bold yellow]"
         )
 
-    output_directory = Path(config.output.directory)
+    output_directory = _resolve_project_path(config.output.directory)
     output_directory.mkdir(parents=True, exist_ok=True)
 
     if "json" in config.output.formats:
