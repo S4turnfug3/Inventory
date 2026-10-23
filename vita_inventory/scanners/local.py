@@ -1,7 +1,4 @@
-"""
-Cross-Platform Local System Scanner.
-Unterstützt: Windows, Linux, macOS
-"""
+"""Local system scanner for supported Windows and Linux systems."""
 
 import platform
 import sys
@@ -48,7 +45,7 @@ class SystemInfo:
 
 
 class LocalScanner:
-    """Scannt lokale Systeminformationen plattformübergreifend."""
+    """Scannt lokale Systeminformationen unter Windows und Linux."""
     
     def __init__(self):
         self.platform = sys.platform
@@ -57,6 +54,12 @@ class LocalScanner:
     
     def scan(self) -> SystemInfo:
         """Führt kompletten Local-Scan durch."""
+        if self.os_type not in {"Windows", "Linux"}:
+            raise RuntimeError(
+                f"Nicht unterstütztes Betriebssystem: {self.os_type}. "
+                "Unterstützt werden Windows und Linux."
+            )
+
         with PerformanceLogger(logger, "Local System Scan"):
             info = SystemInfo(
                 hostname=self._get_hostname(),

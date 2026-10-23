@@ -1,3 +1,5 @@
+import pytest
+
 from vita_inventory.scanners.local import LocalScanner
 
 
@@ -36,3 +38,12 @@ def test_local_scanner_detects_memory():
     system = scanner.scan()
 
     assert system.memory_gb >= 0
+
+
+def test_local_scanner_rejects_unsupported_operating_system(monkeypatch):
+    monkeypatch.setattr(
+        "vita_inventory.scanners.local.platform.system", lambda: "Darwin"
+    )
+
+    with pytest.raises(RuntimeError, match="Unterstützt werden Windows und Linux"):
+        LocalScanner().scan()

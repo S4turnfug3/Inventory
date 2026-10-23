@@ -4,6 +4,8 @@ Vita Inventory ist ein modulares Inventarisierungstool für Homelab-, Desktop- u
 
 Das Projekt sammelt lokale Systeminformationen, ermittelt das aktive IPv4-Netzwerk und kann bekannte Geräte innerhalb dieses Netzwerks erfassen.
 
+Unterstützte Betriebssysteme: Windows und Linux.
+
 ## Aktueller Stand
 
 **Version:** 0.4.0
